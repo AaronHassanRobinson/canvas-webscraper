@@ -2,7 +2,7 @@
 
 A Python tool to download all your course content from Canvas LMS, including assignments, files, pages, discussions, and submissions.
 
-![Canvas Scraper Demo](Screenshot%202026-02-22%20at%205.49.47%20PM.png)
+![Canvas Scraper Demo](screenshot.png)
 
 ## Features
 
