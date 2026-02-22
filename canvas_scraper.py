@@ -683,3 +683,4 @@ if failed_downloads:
 # Simple directory summary instead of full tree
 console.print()
 console.print(f"[dim]Output directory:[/dim] [cyan]{os.path.abspath(download_directory)}[/cyan]")
+
