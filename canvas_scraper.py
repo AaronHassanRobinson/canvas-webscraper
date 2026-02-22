@@ -258,9 +258,13 @@ def make_directory(directory_name: str):
 
 # Parse a string before turning it into a dir, returns a str:
 def sanitize_string(directory_name: str) -> str:
-    parsed_symbols = re.sub(r"[\[\]()<>\?\*\\\/\"\',]", "", directory_name)
+    # Remove characters illegal on Windows: < > : " / \ | ? * and also [ ] ( ) ' ,
+    parsed_symbols = re.sub(r'[\[\]()<>:?\*\\\/\"\'\,|]', "", directory_name)
+    # Replace spaces with underscores
     remove_spaces = re.sub(" ", "_", parsed_symbols)
-    return remove_spaces
+    # Remove trailing dots and spaces (illegal on Windows)
+    cleaned = remove_spaces.rstrip(". ")
+    return cleaned if cleaned else "unnamed"
 
 
 make_directory(download_directory)
@@ -314,7 +318,7 @@ with Progress(
             progress_bar.update(overall_task, description=f"[bold blue]Course {course_num}/{course_count}:[/bold blue] {course_name[:40]}...")
 
             class_name = sanitize_string(course_name)
-            course_download_path = f'{download_directory}//{class_name}'
+            course_download_path = os.path.join(download_directory, class_name)
             make_directory(course_download_path)
 
             # Now we want to setup the dir to follow canvas structure:
@@ -322,7 +326,7 @@ with Progress(
                 modules = course.get_modules()
                 for module in modules:
                     module_name = sanitize_string(module.name)
-                    module_course_download_path = f'{course_download_path}//{module_name}'
+                    module_course_download_path = os.path.join(course_download_path, module_name)
                     make_directory(module_course_download_path)
 
                     # grab every item in the modules
@@ -549,7 +553,7 @@ with Progress(
                 if GotAssignmentFlag == 0:
                     assignments = course.get_assignments()
                     for assignment in assignments:
-                        assignment_download_path = f'{course_download_path}//ASSIGNMENTS'
+                        assignment_download_path = os.path.join(course_download_path, 'ASSIGNMENTS')
 
                         assignment_folder = os.path.join(assignment_download_path,
                                                             sanitize_string(assignment.name))
