@@ -153,6 +153,11 @@ def download_file_with_retry(url, file_path, description):
         skipped_files.append({'file': description, 'path': file_path})
         return True
 
+    # Ensure parent directory exists
+    parent_dir = os.path.dirname(file_path)
+    if parent_dir and not os.path.exists(parent_dir):
+        os.makedirs(parent_dir, exist_ok=True)
+
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             with requests.get(url, stream=True, timeout=30) as response:
@@ -207,6 +212,11 @@ def download_canvas_file_with_retry(canvas_file, file_path, description):
         skipped_files.append({'file': description, 'path': file_path})
         return True
 
+    # Ensure parent directory exists
+    parent_dir = os.path.dirname(file_path)
+    if parent_dir and not os.path.exists(parent_dir):
+        os.makedirs(parent_dir, exist_ok=True)
+
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             canvas_file.download(file_path)
@@ -258,7 +268,7 @@ def make_directory(directory_name: str):
 
 
 # Parse a string before turning it into a dir, returns a str:
-def sanitize_string(name: str, max_length: int = 100) -> str:
+def sanitize_string(name: str, max_length: int = 60) -> str:
     # URL-decode the string (handles + as spaces and %XX encoded chars)
     decoded = unquote_plus(name)
     # Remove characters illegal on Windows: < > : " / \ | ? * and also [ ] ( ) ' ,
@@ -273,7 +283,7 @@ def sanitize_string(name: str, max_length: int = 100) -> str:
     return cleaned if cleaned else "unnamed"
 
 
-def sanitize_filename(filename: str, max_length: int = 150) -> str:
+def sanitize_filename(filename: str, max_length: int = 80) -> str:
     """Sanitize a filename while preserving the extension."""
     # Split into name and extension
     name, ext = os.path.splitext(filename)
