@@ -68,22 +68,22 @@ A Python tool to download all your course content from Canvas LMS, including ass
 
 **Basic usage (resume mode - skips existing files):**
 ```bash
-python main.py
+python canvas_scraper.py
 ```
 
 **Force redownload all files:**
 ```bash
-python main.py --force
+python canvas_scraper.py --force
 ```
 
 **Use a custom config file:**
 ```bash
-python main.py -c my_config.txt
+python canvas_scraper.py -c my_config.txt
 ```
 
 **Pass credentials via command line:**
 ```bash
-python main.py --url https://canvas.edu --key YOUR_API_KEY --output downloads
+python canvas_scraper.py --url https://canvas.edu --key YOUR_API_KEY --output downloads
 ```
 
 ## Command Line Options
