@@ -2,3 +2,5 @@ data_structures.py
 .venv
 .vscode
 University_Engineering_Honours
+canvas_credentials.txt
+__pycache__/
