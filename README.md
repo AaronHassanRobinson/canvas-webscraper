@@ -20,7 +20,7 @@ A Python tool to download all your course content from Canvas LMS, including ass
 1. **Clone this repository**
    ```bash
    git clone https://github.com/AaronHassanRobinson/Canvas_webscraper.git
-   cd Canvas_webscraper
+   cd canvas-webscraper
    ```
 
 2. **Create a virtual environment**
