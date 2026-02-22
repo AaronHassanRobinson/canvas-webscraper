@@ -53,10 +53,10 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
-  python main.py                          # Resume mode - skip existing files
-  python main.py --force                  # Force redownload all files
-  python main.py -c my_config.txt         # Use custom config file
-  python main.py --url https://canvas.edu --key YOUR_API_KEY --output downloads
+  python canvas_scraper.py                          # Resume mode - skip existing files
+  python canvas_scraper.py --force                  # Force redownload all files
+  python canvas_scraper.py -c my_config.txt         # Use custom config file
+  python canvas_scraper.py --url https://canvas.edu --key YOUR_API_KEY --output downloads
 
 Config file format (canvas_credentials.txt):
   API_URL=https://your-canvas-instance.edu
@@ -258,12 +258,11 @@ console.print(f"Mode: [{mode_color}]{mode_text}[/{mode_color}]")
 
 
 def make_directory(directory_name: str):
-    if not os.path.exists(directory_name):
-        try:
-            os.makedirs(directory_name)
-        except:
-            console.print(f"[red]Error making folder: {directory_name}[/red]")
-            exit()
+    """Create directory and all parent directories if they don't exist."""
+    try:
+        os.makedirs(directory_name, exist_ok=True)
+    except OSError as e:
+        console.print(f"[red]Error making folder: {directory_name} - {e}[/red]")
     return
 
 
@@ -290,6 +289,13 @@ def sanitize_filename(filename: str, max_length: int = 80) -> str:
     # Sanitize the name part (leave room for extension)
     safe_name = sanitize_string(name, max_length=max_length - len(ext))
     return safe_name + ext
+
+
+def ensure_dir_for_file(file_path: str):
+    """Ensure the parent directory exists for a file path."""
+    parent_dir = os.path.dirname(file_path)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
 
 
 make_directory(download_directory)
@@ -363,29 +369,27 @@ with Progress(
                                 page_url = item.page_url
                                 page = course.get_page(page_url)
 
-                                page_file_name = sanitize_string(f'{page.title}.html')
+                                page_file_name = sanitize_filename(f'{page.title}.html')
                                 page_file_path = os.path.join(module_course_download_path, page_file_name)
 
-                                if should_skip_file(page_file_path):
+                                if not should_skip_file(page_file_path):
+                                    ensure_dir_for_file(page_file_path)
+                                    with open(page_file_path, 'w', encoding='utf-8') as f:
+                                        f.write(f'<html><head><title>{page.title}</title></head><body>')
+                                        f.write(page.body if getattr(page, "body") else "")
+                                        f.write("</body></html>")
+                                    update_status(f"[green]Saved page:[/green] {page_file_name}", "green")
+                                    downloaded_files.append({'file': page_file_name, 'path': page_file_path})
+                                else:
                                     update_status(f"[dim]Skipped (exists):[/dim] {page_file_name}", "yellow")
                                     skipped_files.append({'file': page_file_name, 'path': page_file_path})
-                                    break
 
-                                with open(page_file_path, 'w', encoding='utf-8') as f:
-                                    f.write(f'<html><head><title>{page.title}</title></head><body>')
-                                    f.write(page.body if getattr(page, "body") else "")
-                                    f.write("</body></html>")
-
-                                update_status(f"[green]Saved page:[/green] {page_file_name}", "green")
-                                downloaded_files.append({'file': page_file_name, 'path': page_file_path})
-                                break
                             case 'File':
                                 file_id = item.content_id
                                 file = course.get_file(file_id)
-                                file_name = sanitize_string(file.display_name)
+                                file_name = sanitize_filename(file.display_name)
                                 file_path = os.path.join(module_course_download_path, file_name)
                                 download_canvas_file_with_retry(file, file_path, file_name)
-                                break
 
                             case 'Assignment':
                                 GotAssignmentFlag = 1
@@ -398,6 +402,7 @@ with Progress(
                                 make_directory(assignment_folder)
 
                                 assignment_description_path = os.path.join(assignment_folder, "assignment_description.html")
+                                ensure_dir_for_file(assignment_description_path)
                                 with open(assignment_description_path, 'w', encoding='utf-8') as f:
                                     f.write(f"<h1>{assignment.name}</h1>")
                                     f.write(f"<p>Due: {getattr(assignment, 'due_at', 'No due date')}</p>")
@@ -406,6 +411,7 @@ with Progress(
 
                                 submission = assignment.get_submission(user)
                                 sub_path = os.path.join(assignment_folder, "my_submission.txt")
+                                ensure_dir_for_file(sub_path)
                                 with open(sub_path, 'w', encoding='utf-8') as f:
                                     f.write(f"Submitted at: {getattr(submission, 'submitted_at', 'Not submitted')}\n")
                                     f.write(f"Grade: {getattr(submission, 'grade', 'Not graded')}\n")
@@ -425,73 +431,73 @@ with Progress(
 
                                     if hasattr(submission, 'body') and submission.body:
                                         text_path = os.path.join(assignment_folder, "submission_text.html")
+                                        ensure_dir_for_file(text_path)
                                         with open(text_path, 'w', encoding='utf-8') as f:
                                             f.write(submission.body)
 
                                 update_status(f"[green]Saved assignment:[/green] {assignment.name[:50]}", "green")
-                                break
+
                             case 'Discussion':
                                 discussion_id = item.content_id
                                 discussion = course.get_discussion_topic(discussion_id)
 
-                                file_name = sanitize_string(f"{discussion.title}.html")
+                                file_name = sanitize_filename(f"{discussion.title}.html")
                                 file_path = os.path.join(module_course_download_path, file_name)
 
-                                if should_skip_file(file_path):
+                                if not should_skip_file(file_path):
+                                    ensure_dir_for_file(file_path)
+                                    with open(file_path, 'w', encoding='utf-8') as f:
+                                        f.write(f"<h1>{discussion.title}</h1>")
+                                        f.write(f"<p>Posted: {getattr(discussion, 'posted_at', 'unknown')}</p>")
+                                        f.write(f"<div>{discussion.message if discussion.message else ''}</div>")
+                                        f.write(f"<h2>Discussion entries:</h2>")
+                                        try:
+                                            entries = discussion.get_topic_entries()
+                                            for entry in entries:
+                                                f.write(f"<div style='margin: 20px;'>")
+                                                f.write(f"<strong>{getattr(entry, 'user_name', 'Unknown')}</strong><br>")
+                                                f.write(f"{getattr(entry, 'message', '')}")
+                                                f.write(f"</div>")
+                                        except Exception as e:
+                                            f.write(f"<p>Could not load entries, error: {e}</p>")
+                                    update_status(f"[green]Saved discussion:[/green] {file_name}", "green")
+                                    downloaded_files.append({'file': file_name, 'path': file_path})
+                                else:
                                     update_status(f"[dim]Skipped (exists):[/dim] {file_name}", "yellow")
                                     skipped_files.append({'file': file_name, 'path': file_path})
-                                    break
 
-                                with open(file_path, 'w', encoding='utf-8') as f:
-                                    f.write(f"<h1>{discussion.title}</h1>")
-                                    f.write(f"<p>Posted: {getattr(discussion, 'posted_at', 'unknown')}</p>")
-                                    f.write(f"<div>{discussion.message if discussion.message else ''}</div>")
-                                    f.write(f"<h2>Discussion entries:</h2>")
-                                    try:
-                                        entries = discussion.get_topic_entries()
-                                        for entry in entries:
-                                            f.write(f"<div style='margin: 20px;'>")
-                                            f.write(f"<strong>{getattr(entry, 'user_name', 'Unknown')}</strong><br>")
-                                            f.write(f"{getattr(entry, 'message', '')}")
-                                            f.write(f"</div>")
-                                    except Exception as e:
-                                        f.write(f"<p>Could not load entries, error: {e}</p>")
-
-                                update_status(f"[green]Saved discussion:[/green] {file_name}", "green")
-                                downloaded_files.append({'file': file_name, 'path': file_path})
-                                break
                             case 'ExternalUrl':
-                                file_name = sanitize_string(f"{item.title}_link.txt")
+                                file_name = sanitize_filename(f"{item.title}_link.txt")
                                 file_path = os.path.join(module_course_download_path, file_name)
 
-                                if should_skip_file(file_path):
+                                if not should_skip_file(file_path):
+                                    ensure_dir_for_file(file_path)
+                                    with open(file_path, 'w', encoding='utf-8') as f:
+                                        f.write(f"Title: {item.title}\n")
+                                        f.write(f"URL: {item.external_url}\n")
+                                    update_status(f"[green]Saved URL:[/green] {file_name}", "green")
+                                    downloaded_files.append({'file': file_name, 'path': file_path})
+                                else:
                                     update_status(f"[dim]Skipped (exists):[/dim] {file_name}", "yellow")
                                     skipped_files.append({'file': file_name, 'path': file_path})
-                                    break
 
-                                with open(file_path, 'w', encoding='utf-8') as f:
-                                    f.write(f"Title: {item.title}\n")
-                                    f.write(f"URL: {item.external_url}\n")
-                                update_status(f"[green]Saved URL:[/green] {file_name}", "green")
-                                downloaded_files.append({'file': file_name, 'path': file_path})
-                                break
                             case 'ExternalTool':
-                                file_name = sanitize_string(f"{item.title}_external_tool.txt")
+                                file_name = sanitize_filename(f"{item.title}_external_tool.txt")
                                 file_path = os.path.join(module_course_download_path, file_name)
 
-                                if should_skip_file(file_path):
+                                if not should_skip_file(file_path):
+                                    ensure_dir_for_file(file_path)
+                                    with open(file_path, 'w', encoding='utf-8') as f:
+                                        f.write(f"Title: {item.title}\n")
+                                        f.write(f"URL: {item.external_url}\n")
+                                    update_status(f"[green]Saved external tool:[/green] {file_name}", "green")
+                                    downloaded_files.append({'file': file_name, 'path': file_path})
+                                else:
                                     update_status(f"[dim]Skipped (exists):[/dim] {file_name}", "yellow")
                                     skipped_files.append({'file': file_name, 'path': file_path})
-                                    break
 
-                                with open(file_path, 'w', encoding='utf-8') as f:
-                                    f.write(f"Title: {item.title}\n")
-                                    f.write(f"URL: {item.external_url}\n")
-                                update_status(f"[green]Saved external tool:[/green] {file_name}", "green")
-                                downloaded_files.append({'file': file_name, 'path': file_path})
-                                break
                             case 'SubHeader':
-                                break
+                                pass  # Just a header, nothing to download
                             case "Quiz":
                                 quiz_id = item.content_id
                                 try:
@@ -502,23 +508,22 @@ with Progress(
 
                                     # Save quiz details
                                     quiz_info_path = os.path.join(quiz_folder, "quiz_info.html")
-                                    if should_skip_file(quiz_info_path):
+                                    if not should_skip_file(quiz_info_path):
+                                        ensure_dir_for_file(quiz_info_path)
+                                        with open(quiz_info_path, 'w', encoding='utf-8') as f:
+                                            f.write(f"<html><head><title>{quiz.title}</title></head><body>")
+                                            f.write(f"<h1>{quiz.title}</h1>")
+                                            f.write(f"<p><strong>Due:</strong> {getattr(quiz, 'due_at', 'No due date')}</p>")
+                                            f.write(f"<p><strong>Points:</strong> {getattr(quiz, 'points_possible', 'N/A')}</p>")
+                                            f.write(f"<p><strong>Time Limit:</strong> {getattr(quiz, 'time_limit', 'None')} minutes</p>")
+                                            f.write(f"<p><strong>Allowed Attempts:</strong> {getattr(quiz, 'allowed_attempts', 'Unlimited')}</p>")
+                                            f.write(f"<h2>Description</h2>")
+                                            f.write(f"<div>{quiz.description if quiz.description else 'No description'}</div>")
+                                            f.write("</body></html>")
+                                        downloaded_files.append({'file': f"{quiz.title}/quiz_info.html", 'path': quiz_info_path})
+                                    else:
                                         update_status(f"[dim]Skipped (exists):[/dim] {quiz.title}", "yellow")
                                         skipped_files.append({'file': quiz.title, 'path': quiz_info_path})
-                                        break
-
-                                    with open(quiz_info_path, 'w', encoding='utf-8') as f:
-                                        f.write(f"<html><head><title>{quiz.title}</title></head><body>")
-                                        f.write(f"<h1>{quiz.title}</h1>")
-                                        f.write(f"<p><strong>Due:</strong> {getattr(quiz, 'due_at', 'No due date')}</p>")
-                                        f.write(f"<p><strong>Points:</strong> {getattr(quiz, 'points_possible', 'N/A')}</p>")
-                                        f.write(f"<p><strong>Time Limit:</strong> {getattr(quiz, 'time_limit', 'None')} minutes</p>")
-                                        f.write(f"<p><strong>Allowed Attempts:</strong> {getattr(quiz, 'allowed_attempts', 'Unlimited')}</p>")
-                                        f.write(f"<h2>Description</h2>")
-                                        f.write(f"<div>{quiz.description if quiz.description else 'No description'}</div>")
-                                        f.write("</body></html>")
-
-                                    downloaded_files.append({'file': f"{quiz.title}/quiz_info.html", 'path': quiz_info_path})
 
                                     # Try to get quiz questions
                                     try:
@@ -571,11 +576,11 @@ with Progress(
                                     update_status(f"[green]Saved quiz:[/green] {quiz.title}", "green")
                                 except Exception as e:
                                     update_status(f"[red]Error getting quiz: {e}[/red]", "red")
-                                break
+
                             case _:
                                 update_status(f"[yellow]Unknown type:[/yellow] {item.type}", "yellow")
-                        pass
-                GotAssignmentFlag = 0
+
+                # If no assignments were found in modules, download from ASSIGNMENTS folder
                 if GotAssignmentFlag == 0:
                     assignments = course.get_assignments()
                     for assignment in assignments:
@@ -587,6 +592,7 @@ with Progress(
                         make_directory(assignment_folder)
 
                         assignment_description_path = os.path.join(assignment_folder, "assignment_description.html")
+                        ensure_dir_for_file(assignment_description_path)
                         with open(assignment_description_path, 'w', encoding='utf-8') as f:
                             f.write(f"<h1>{assignment.name}</h1>")
                             f.write(f"<p>Due: {getattr(assignment, 'due_at', 'No due date')}</p>")
@@ -595,6 +601,7 @@ with Progress(
 
                         submission = assignment.get_submission(user, include=['group', 'submission_history'])
                         sub_path = os.path.join(assignment_folder, "my_submission.txt")
+                        ensure_dir_for_file(sub_path)
                         with open(sub_path, 'w', encoding='utf-8') as f:
                             f.write(f"Submitted at: {getattr(submission, 'submitted_at', 'Not submitted')}\n")
                             f.write(f"Grade: {getattr(submission, 'grade', 'Not graded')}\n")
@@ -614,6 +621,7 @@ with Progress(
 
                             if hasattr(submission, 'body') and submission.body:
                                 text_path = os.path.join(assignment_folder, "submission_text.html")
+                                ensure_dir_for_file(text_path)
                                 with open(text_path, 'w', encoding='utf-8') as f:
                                     f.write(submission.body)
             except Exception as e:
