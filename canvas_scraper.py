@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import time
+from urllib.parse import unquote_plus
 
 import requests
 from rich.console import Console
@@ -257,14 +258,28 @@ def make_directory(directory_name: str):
 
 
 # Parse a string before turning it into a dir, returns a str:
-def sanitize_string(directory_name: str) -> str:
+def sanitize_string(name: str, max_length: int = 100) -> str:
+    # URL-decode the string (handles + as spaces and %XX encoded chars)
+    decoded = unquote_plus(name)
     # Remove characters illegal on Windows: < > : " / \ | ? * and also [ ] ( ) ' ,
-    parsed_symbols = re.sub(r'[\[\]()<>:?\*\\\/\"\'\,|]', "", directory_name)
+    parsed_symbols = re.sub(r'[\[\]()<>:?\*\\\/\"\'\,|]', "", decoded)
     # Replace spaces with underscores
     remove_spaces = re.sub(" ", "_", parsed_symbols)
     # Remove trailing dots and spaces (illegal on Windows)
     cleaned = remove_spaces.rstrip(". ")
+    # Truncate to max length to avoid Windows path limits
+    if len(cleaned) > max_length:
+        cleaned = cleaned[:max_length].rstrip("_. ")
     return cleaned if cleaned else "unnamed"
+
+
+def sanitize_filename(filename: str, max_length: int = 150) -> str:
+    """Sanitize a filename while preserving the extension."""
+    # Split into name and extension
+    name, ext = os.path.splitext(filename)
+    # Sanitize the name part (leave room for extension)
+    safe_name = sanitize_string(name, max_length=max_length - len(ext))
+    return safe_name + ext
 
 
 make_directory(download_directory)
@@ -393,8 +408,9 @@ with Progress(
 
                                     if hasattr(submission, 'attachments') and submission.attachments:
                                         for attachment in submission.attachments:
-                                            file_path = os.path.join(assignment_folder, attachment.filename)
-                                            description = f"{attachment.filename} (from {assignment.name})"
+                                            safe_filename = sanitize_filename(attachment.filename)
+                                            file_path = os.path.join(assignment_folder, safe_filename)
+                                            description = f"{safe_filename} (from {assignment.name})"
                                             download_file_with_retry(attachment.url, file_path, description)
 
                                     if hasattr(submission, 'body') and submission.body:
@@ -581,8 +597,9 @@ with Progress(
 
                             if hasattr(submission, 'attachments') and submission.attachments:
                                 for attachment in submission.attachments:
-                                    file_path = os.path.join(assignment_folder, attachment.filename)
-                                    description = f"{attachment.filename} (from {assignment.name})"
+                                    safe_filename = sanitize_filename(attachment.filename)
+                                    file_path = os.path.join(assignment_folder, safe_filename)
+                                    description = f"{safe_filename} (from {assignment.name})"
                                     download_file_with_retry(attachment.url, file_path, description)
 
                             if hasattr(submission, 'body') and submission.body:
