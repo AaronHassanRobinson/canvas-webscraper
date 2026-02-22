@@ -463,6 +463,84 @@ with Progress(
                             case 'SubHeader':
                                 break
                             case "Quiz":
+                                quiz_id = item.content_id
+                                try:
+                                    quiz = course.get_quiz(quiz_id)
+                                    quiz_folder = os.path.join(module_course_download_path,
+                                                               sanitize_string(quiz.title))
+                                    make_directory(quiz_folder)
+
+                                    # Save quiz details
+                                    quiz_info_path = os.path.join(quiz_folder, "quiz_info.html")
+                                    if should_skip_file(quiz_info_path):
+                                        update_status(f"[dim]Skipped (exists):[/dim] {quiz.title}", "yellow")
+                                        skipped_files.append({'file': quiz.title, 'path': quiz_info_path})
+                                        break
+
+                                    with open(quiz_info_path, 'w', encoding='utf-8') as f:
+                                        f.write(f"<html><head><title>{quiz.title}</title></head><body>")
+                                        f.write(f"<h1>{quiz.title}</h1>")
+                                        f.write(f"<p><strong>Due:</strong> {getattr(quiz, 'due_at', 'No due date')}</p>")
+                                        f.write(f"<p><strong>Points:</strong> {getattr(quiz, 'points_possible', 'N/A')}</p>")
+                                        f.write(f"<p><strong>Time Limit:</strong> {getattr(quiz, 'time_limit', 'None')} minutes</p>")
+                                        f.write(f"<p><strong>Allowed Attempts:</strong> {getattr(quiz, 'allowed_attempts', 'Unlimited')}</p>")
+                                        f.write(f"<h2>Description</h2>")
+                                        f.write(f"<div>{quiz.description if quiz.description else 'No description'}</div>")
+                                        f.write("</body></html>")
+
+                                    downloaded_files.append({'file': f"{quiz.title}/quiz_info.html", 'path': quiz_info_path})
+
+                                    # Try to get quiz questions
+                                    try:
+                                        questions = quiz.get_questions()
+                                        questions_path = os.path.join(quiz_folder, "quiz_questions.html")
+                                        with open(questions_path, 'w', encoding='utf-8') as f:
+                                            f.write(f"<html><head><title>{quiz.title} - Questions</title></head><body>")
+                                            f.write(f"<h1>{quiz.title} - Questions</h1>")
+                                            q_num = 0
+                                            for question in questions:
+                                                q_num += 1
+                                                f.write(f"<div style='margin: 20px 0; padding: 15px; border: 1px solid #ccc;'>")
+                                                f.write(f"<h3>Question {q_num}</h3>")
+                                                f.write(f"<p><strong>Type:</strong> {getattr(question, 'question_type', 'Unknown')}</p>")
+                                                f.write(f"<p><strong>Points:</strong> {getattr(question, 'points_possible', 'N/A')}</p>")
+                                                f.write(f"<div>{getattr(question, 'question_text', '')}</div>")
+
+                                                # Show answers/choices if available
+                                                if hasattr(question, 'answers') and question.answers:
+                                                    f.write("<ul>")
+                                                    for answer in question.answers:
+                                                        answer_text = answer.get('text', answer.get('html', ''))
+                                                        f.write(f"<li>{answer_text}</li>")
+                                                    f.write("</ul>")
+                                                f.write("</div>")
+                                            f.write("</body></html>")
+                                        downloaded_files.append({'file': f"{quiz.title}/quiz_questions.html", 'path': questions_path})
+                                    except Exception:
+                                        pass  # Questions may not be accessible
+
+                                    # Try to get user's quiz submission
+                                    try:
+                                        submissions = quiz.get_submissions()
+                                        for submission in submissions:
+                                            if getattr(submission, 'user_id', None) == user.id:
+                                                sub_path = os.path.join(quiz_folder, "my_submission.html")
+                                                with open(sub_path, 'w', encoding='utf-8') as f:
+                                                    f.write(f"<html><head><title>{quiz.title} - My Submission</title></head><body>")
+                                                    f.write(f"<h1>{quiz.title} - My Submission</h1>")
+                                                    f.write(f"<p><strong>Score:</strong> {getattr(submission, 'score', 'N/A')} / {getattr(quiz, 'points_possible', 'N/A')}</p>")
+                                                    f.write(f"<p><strong>Attempt:</strong> {getattr(submission, 'attempt', 'N/A')}</p>")
+                                                    f.write(f"<p><strong>Submitted:</strong> {getattr(submission, 'finished_at', 'N/A')}</p>")
+                                                    f.write(f"<p><strong>Time Spent:</strong> {getattr(submission, 'time_spent', 'N/A')} seconds</p>")
+                                                    f.write("</body></html>")
+                                                downloaded_files.append({'file': f"{quiz.title}/my_submission.html", 'path': sub_path})
+                                                break
+                                    except Exception:
+                                        pass  # Submissions may not be accessible
+
+                                    update_status(f"[green]Saved quiz:[/green] {quiz.title}", "green")
+                                except Exception as e:
+                                    update_status(f"[red]Error getting quiz: {e}[/red]", "red")
                                 break
                             case _:
                                 update_status(f"[yellow]Unknown type:[/yellow] {item.type}", "yellow")

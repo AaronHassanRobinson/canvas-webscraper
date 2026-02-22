@@ -2,10 +2,13 @@
 
 A Python tool to download all your course content from Canvas LMS, including assignments, files, pages, discussions, and submissions.
 
+![Canvas Scraper Demo](Screenshot%202026-02-22%20at%205.49.47%20PM.png)
+
 ## Features
 
 - Downloads all course modules and content
 - Saves assignments with descriptions, grades, and your submissions
+- Downloads quizzes with questions and your scores
 - Captures discussion posts and replies
 - Organizes content into a clean folder structure
 - Resume mode to skip already-downloaded files
@@ -106,6 +109,10 @@ output_folder/
 │   │   │   ├── assignment_description.html
 │   │   │   ├── my_submission.txt
 │   │   │   └── submitted_file.pdf
+│   │   ├── Quiz_Name/
+│   │   │   ├── quiz_info.html
+│   │   │   ├── quiz_questions.html
+│   │   │   └── my_submission.html
 │   │   └── Discussion_Topic.html
 │   └── ASSIGNMENTS/
 │       └── ...
@@ -118,6 +125,7 @@ output_folder/
 - **Pages** - Saved as HTML files
 - **Files** - PDFs, documents, images, etc.
 - **Assignments** - Description, due date, points, your submission and grade
+- **Quizzes** - Quiz info, questions (if accessible), and your score
 - **Discussions** - Topic and all replies
 - **External URLs** - Saved as text files with the link
 
