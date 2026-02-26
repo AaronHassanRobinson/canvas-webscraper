@@ -588,7 +588,6 @@ with Progress(
 
                         assignment_folder = os.path.join(assignment_download_path,
                                                             sanitize_string(assignment.name))
-
                         make_directory(assignment_folder)
 
                         assignment_description_path = os.path.join(assignment_folder, "assignment_description.html")
