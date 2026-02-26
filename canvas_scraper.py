@@ -719,7 +719,7 @@ if failed_downloads:
     if len(failed_downloads) > 5:
         console.print(f"  [dim]... and {len(failed_downloads) - 5} more[/dim]")
 
-# Simple directory summary instead of full tree
+
 console.print()
 console.print(f"[dim]Output directory:[/dim] [cyan]{os.path.abspath(download_directory)}[/cyan]")
 
