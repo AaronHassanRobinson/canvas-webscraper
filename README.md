@@ -54,7 +54,11 @@ A Python tool to download all your course content from Canvas LMS, including ass
 
 1. Copy the example config file:
    ```bash
+   # On macOS/Linux:
    cp canvas_credentials.example.txt canvas_credentials.txt
+
+   # On Windows:
+   copy canvas_credentials.example.txt canvas_credentials.txt
    ```
 
 2. Edit `canvas_credentials.txt` with your details:
